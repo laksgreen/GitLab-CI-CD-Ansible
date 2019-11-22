@@ -1,0 +1,82 @@
+image:
+  name: docker/compose:1.23.2 # update tag to whatever version you want to use.
+  entrypoint: ["/bin/sh", "-c"]
+
+variables:
+## Update your project and environment ports start with DEV=3000, staging=4000 and prod=5000 
+  PROJECT: demo-project
+  DEV_PORT: 8001
+  STAGING_PORT: 7001
+  PROD_PORT: 6001
+  APP_PORT: 3000
+## Don't change it
+  REGISTRY: dockerhub.domain.com
+  LATEST_VER: '$REGISTRY/$PROJECT-$CI_PROJECT_NAME:$CI_PIPELINE_IID'
+  ANSIBLE_FORCE_COLOR: 'true'
+
+stages:
+  - Build image
+  - Push to Docker Hub
+  - deploy
+
+before_script:
+  - docker version
+  - docker-compose version
+  - echo "$REGISTRY_PASSWORD" | docker login -u "$REGISTRY_USER" --password-stdin $REGISTRY
+  
+docker build:
+  stage: Build image
+  script:
+  - docker info
+  - docker build -t $LATEST_VER .
+
+docker push:
+  stage: Push to Docker Hub
+  only:
+  - master
+  script:
+  - docker push $LATEST_VER 
+
+## DEPLOYMENT STARTED AUTO/MANUAL
+deploy_dev:
+  stage: deploy
+  environment:
+    name: development
+  only:
+  - master
+  before_script:
+    - apk add ansible python
+    - apk update && apk add openssh
+    - ansible $PROJECT-dev -m ping
+  script:
+  - ansible-playbook -e "HOST_NAMES=$PROJECT-dev" -e "LATEST_VER=$LATEST_VER" -e "PROJECT=$PROJECT" -e "ENV=development" -e "CI_PROJECT_NAME=$CI_PROJECT_NAME" -e "PORTS=$DEV_PORT:$APP_PORT" main.yml
+
+deploy_staging:
+  only:
+    - schedules
+  stage: deploy
+  environment: 
+    name: staging
+  before_script:
+    - apk add ansible python
+    - apk update && apk add openssh
+    - ansible $PROJECT-staging -m ping
+  script:
+  - ansible-playbook -e "HOST_NAMES=$PROJECT-staging" -e "LATEST_VER=$LATEST_VER" -e "PROJECT=$PROJECT" -e "ENV=staging" -e "CI_PROJECT_NAME=$CI_PROJECT_NAME" -e "PORTS=$STAGING_PORT:$APP_PORT" main.yml
+  when: manual
+  only:
+  - master
+
+deploy_production:
+  stage: deploy
+  environment: 
+    name: production
+  before_script:
+    - apk add ansible python
+    - apk update && apk add openssh
+    - ansible $PROJECT-production -m ping
+  script:
+  - ansible-playbook -e "HOST_NAMES=$PROJECT-production" -e "LATEST_VER=$LATEST_VER" -e "PROJECT=$PROJECT" -e "ENV=production" -e "CI_PROJECT_NAME=$CI_PROJECT_NAME" -e "PORTS=$PROD_PORT:$APP_PORT" main.yml
+  when: manual
+  only:
+  - master

@@ -1,0 +1,27 @@
+## Deployment pack"
+- hosts: "{{HOST_NAMES}}"
+  become: true
+  tasks:
+  - name: Log into dockerhub.domain.com registry | force re-auth
+    docker_login:
+      registry: dockerhub.domain.com
+      username: USERNAME
+      password: PASSWORD
+
+  - name: Pull an latest image from dockerhub.domain.com registry
+    docker_image:
+      name: "{{LATEST_VER}}"
+
+  - name: Deploying the docker-containers to the "{{ENV}}" - "{{CI_PROJECT_NAME}}"
+    docker_container:
+      name: "{{PROJECT}}_{{ENV}}_{{CI_PROJECT_NAME}}"
+      image: "{{LATEST_VER}}"
+      env:
+        ENV: "{{ENV}}"
+      recreate: yes
+      state: started
+      restart: yes
+      ports:
+        - "{{PORTS}}"
+      volumes:
+        - "devcdn:/docker-node/cdn:rw"

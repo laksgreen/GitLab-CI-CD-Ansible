@@ -1,0 +1,5 @@
+Host *
+IdentityFile /root/.ssh/github_rsa
+HostName repos.domain.com
+StrictHostKeyChecking no
+UserKnownHostsFile /dev/null
