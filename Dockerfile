@@ -1,6 +1,6 @@
 #FROM dockerhub.infi.com/intel:v1.0.1
 FROM node:latest
-MAINTAINER thelinuxfaq@gmail.com
+MAINTAINER laksgreen
 WORKDIR /docker-node
 RUN mkdir /home/user/.ssh
 COPY . /docker-node
